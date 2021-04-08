@@ -1,76 +1,49 @@
+// Getting resources needed for bot (discord, fetch, config, etc.)
 const Discord = require('discord.js');
-const fetch = require('node-fetch');
-const config = require('./config.json');
+const fs = require('fs');
+const config = require('./commands/config.json');
 const client = new Discord.Client();
+client.commands = new Discord.Collection();
 
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
+for (const file of commandFiles) {
+	const command = require(`./commands/${file}`);
+
+	// set a new item in the Collection
+	// with the key as the command name and the value as the exported module
+	client.commands.set(command.name, command);
+}
+
+// Notification that bot is logged into Discord
 client.once('ready', () => {
 	console.log('hey stupid bitch, i logged in fyi');
 });
 
+// Cancelling any responses to the bot itself or anything without the specified prefix
 client.on('message', message => {
 	if (!message.content.startsWith(config.prefix) || message.author.bot) return;
 
 	const args = message.content.slice(config.prefix.length).trim().split(/ +/);
 	const command = args.shift().toLowerCase();
 
+	// Joke command that finds prefix + 'brick' and returns 'fart'
 	if (message.content === config.prefix + 'brick') {
 		message.channel.send('fart');
 	}
-
+	// Command = guide, will return a embed.
 	else if (command === 'guide') {
-		const guide = new Discord.MessageEmbed()
-			.setColor('#0099ff')
-			.setTitle('AtlasMC Guide')
-			.setURL('https://help.atlasmc.org/')
-			.addFields(
-				{ name: 'Access the Guide', value: ('You silly little baka! You can find the guide at https://help.atlasmc.org/') },
-			);
-
-		message.channel.send(guide);
+		client.commands.get('guide').execute(message, args);
 	}
-	else if (command === 'town') {
-		if (!args.length) {
-			return message.channel.send('No provided town name.');
-		}
-		else {
-			fetch(`${config.api}${args[0]}.txt`)
-				.then(res => res.text())
-				.then(text => {
-					const [ nameRaw, mayorRaw, nationRaw ] = text.split('\n');
-					if (nameRaw.startsWith('name')) {
-						const name = nameRaw.replace('name=', '');
-						const mayor = mayorRaw.replace('mayor=', '');
-						const nation2 = nationRaw.replace('nation=', ', ');
-						console.log(name, mayor, nation2);
-
-						const townembed = new Discord.MessageEmbed()
-							.setColor('#0099ff')
-							.setTitle(name + nation2)
-							.setURL(`${config.api}${args[0]}.txt`)
-							.setAuthor('AtlasMC Genius', 'https://cdn.discordapp.com/avatars/829046573966164069/e7e936c145e476b77b052ca28e996c33.png', 'https://atlasmc.org/')
-							.addFields(
-								{ name: 'Regular field title', value: 'Some value here' },
-								{ name: '\u200B', value: '\u200B' },
-								{ name: 'Inline field title', value: 'Some value here', inline: true },
-								{ name: 'Inline field title', value: 'Some value here', inline: true },
-							)
-							.addField('Inline field title', 'Some value here', true)
-							.setTimestamp()
-							.setFooter('Made for AtlasMC by Aiden#2222', 'https://cdn.discordapp.com/avatars/573714496250707978/e93661f68d8fe95eedb373efbd424bbb.png');
-						message.channel.send(townembed);
-					}
-					else {
-						message.channel.send('You did **not** send a valid town name.');
-					}
-
-				});
-
-		}
+	else if (command === 'help') {
+		client.commands.get('help').execute(message, args);
+	}
+	else if (command === 'town' || command === 't') {
+		client.commands.get('town').execute(message, args);
+	}
+	else if (command === 'nation' || command === 'n') {
+		client.commands.get('nation').execute(message, args);
 	}
 },
 
-
-);
-
-client.login(config.token);
+client.login(config.token));
